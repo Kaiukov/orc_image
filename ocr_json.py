@@ -14,8 +14,8 @@ def main():
             print(json.dumps({"error": "No binary data provided"}), file=sys.stderr)
             sys.exit(1)
         
-        # Get file path from environment variable if provided
-        file_path = os.environ.get('FILE_PATH', 'stdin')
+        # Get file path from environment variable or command line arg
+        file_path = os.environ.get('FILE_PATH') or (sys.argv[1] if len(sys.argv) > 1 else 'stdin')
         
         # Open image directly from binary data
         from io import BytesIO
@@ -23,6 +23,13 @@ def main():
         
         # Extract text
         text = pytesseract.image_to_string(image).strip()
+        
+        # Clean up temp file if it exists and is in /tmp/
+        if file_path.startswith('/tmp/') and os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except Exception:
+                pass  # Ignore cleanup errors
         
         # Return JSON response
         result = {
