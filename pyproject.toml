@@ -1,0 +1,13 @@
+[project]
+name = "ocr-image"
+version = "0.1.0"
+description = "OCR image processing from base64 input"
+requires-python = ">=3.8"
+dependencies = [
+    "Pillow>=10.0.0",
+    "pytesseract>=0.3.10",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
