@@ -2,8 +2,49 @@
 import sys
 import os
 import argparse
+import re
 from PIL import Image
 import pytesseract
+
+def correct_currency_symbols(text):
+    """
+    Correct common OCR misreadings of Ukrainian currency symbols and patterns
+    """
+    # Common corrections for Ukrainian hryvnia symbol
+    corrections = [
+        # Fix hryvnia symbol misread as 2
+        (r'(\d+\.\d+)\s*2\s*$', r'\1 ₴'),  # 300.00 2 -> 300.00 ₴
+        (r'(\d+\.\d+)2\s*$', r'\1₴'),      # 300.002 -> 300.00₴
+        (r'(\d+)\s*2\s*$', r'\1 ₴'),        # 300 2 -> 300 ₴
+        (r'(\d+)2\s*$', r'\1₴'),            # 3002 -> 300₴
+        
+        # Fix hryvnia at the end of lines containing numbers
+        (r'(-?\d+\.?\d*)\s*2(\s*$)', r'\1 ₴\2'),
+        
+        # Fix other common misreadings
+        (r'(\d+\.\d+)\s*z\s*$', r'\1 ₴'),  # sometimes ₴ is read as 'z'
+        (r'(\d+\.\d+)z\s*$', r'\1₴'),
+        (r'(\d+\.\d+)\s*е\s*$', r'\1 ₴'),  # sometimes ₴ is read as 'е'
+        (r'(\d+\.\d+)е\s*$', r'\1₴'),
+        
+        # Common Ukrainian text corrections
+        (r'Розваги та спорт', 'Розваги та спорт'),
+        (r'Залишок', 'Залишок'),
+        (r'Oплата в інтернеті', 'Оплата в інтернеті'),
+        (r'Роздiлити витрату', 'Розділити витрату'),
+        (r'Переглянути квитанцiю', 'Переглянути квитанцію'),
+        (r'Налаштування платежiв', 'Налаштування платежів'),
+        (r'Поставити запитання', 'Поставити запитання'),
+        
+        # Fix О (Latin O) vs О (Cyrillic O) confusion
+        (r'Oпис', 'Опис'),
+    ]
+    
+    corrected_text = text
+    for pattern, replacement in corrections:
+        corrected_text = re.sub(pattern, replacement, corrected_text, flags=re.MULTILINE)
+    
+    return corrected_text
 
 def main():
     # Parse command line arguments
@@ -13,6 +54,8 @@ def main():
                        help='Language(s) for OCR (default: eng+ukr+rus)')
     parser.add_argument('--list-langs', action='store_true',
                        help='List available languages and exit')
+    parser.add_argument('--no-correction', action='store_true',
+                       help='Skip post-processing corrections')
     
     args = parser.parse_args()
     
@@ -42,6 +85,11 @@ def main():
         
         # Extract text with specified language(s)
         text = pytesseract.image_to_string(image, lang=args.lang)
+        
+        # Apply corrections unless disabled
+        if not args.no_correction:
+            text = correct_currency_symbols(text)
+        
         print(text.strip())
         
         # Clean up temp file if it exists and is in /tmp/
